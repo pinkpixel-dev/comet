@@ -12,7 +12,7 @@ pub fn draw_help_modal(frame: &mut Frame, area: Rect, theme: &Theme) {
     let shortcuts = vec![
         ("1 / o", "Overview Dashboard"),
         ("2 / c", "CPU Details & Core Telemetry"),
-        ("3 / g", "GPU Details (NVIDIA NVML)"),
+        ("3 / g", "GPU Details / Cycle GPU [g]"),
         ("4 / m", "Memory & Swap Telemetry"),
         ("5 / d", "Disks & Filesystem I/O"),
         ("6 / n", "Network Interfaces & Throughput"),

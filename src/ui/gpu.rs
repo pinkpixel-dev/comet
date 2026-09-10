@@ -1,7 +1,7 @@
 use super::widgets::history_chart::draw_history_chart;
 use super::widgets::meter::{create_utilization_gauge, format_bytes};
 use crate::history::MetricHistory;
-use crate::telemetry::TelemetryState;
+use crate::telemetry::{GpuVendor, TelemetryState};
 use crate::theme::Theme;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Modifier, Style};
@@ -14,21 +14,39 @@ pub fn draw_gpu_tab(
     area: Rect,
     telemetry: &TelemetryState,
     history: &MetricHistory,
+    selected_gpu_index: usize,
     theme: &Theme,
 ) {
-    if let Some(gpu) = &telemetry.gpu {
+    let active_gpu = telemetry
+        .gpus
+        .get(selected_gpu_index)
+        .or(telemetry.gpu.as_ref());
+
+    if let Some(gpu) = active_gpu {
         let rows = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
                 Constraint::Length(8), // Gauges & Summary
                 Constraint::Min(10),  // History Chart
-                Constraint::Min(8),   // GPU Process Table
+                Constraint::Min(8),   // GPU Process Table / Details
             ])
             .split(area);
 
         // 1. GPU Summary Block
+        let title_text = if telemetry.gpus.len() > 1 {
+            format!(
+                " {} GPU ({}/{}): {} [g: switch] ",
+                gpu.vendor,
+                selected_gpu_index + 1,
+                telemetry.gpus.len(),
+                gpu.name
+            )
+        } else {
+            format!(" {} GPU: {} ", gpu.vendor, gpu.name)
+        };
+
         let sum_block = Block::default()
-            .title(format!(" NVIDIA GPU: {} ", gpu.name))
+            .title(title_text)
             .borders(Borders::ALL)
             .border_style(Style::default().fg(theme.accent))
             .style(Style::default().bg(theme.panel_bg));
@@ -54,16 +72,20 @@ pub fn draw_gpu_tab(
         );
         frame.render_widget(gpu_gauge, sum_cols[0]);
 
-        let vram_ratio = if gpu.memory_total > 0 {
-            gpu.memory_used as f64 / gpu.memory_total as f64
+        let (vram_label, vram_ratio) = if gpu.is_shared_memory || gpu.memory_total == 0 {
+            ("VRAM: Shared System Memory (UMA)".to_string(), 0.0)
         } else {
-            0.0
+            let ratio = (gpu.memory_used as f64 / gpu.memory_total as f64).clamp(0.0, 1.0);
+            (
+                format!(
+                    "VRAM: {} / {}",
+                    format_bytes(gpu.memory_used),
+                    format_bytes(gpu.memory_total)
+                ),
+                ratio,
+            )
         };
-        let vram_label = format!(
-            "VRAM: {} / {}",
-            format_bytes(gpu.memory_used),
-            format_bytes(gpu.memory_total)
-        );
+
         let vram_gauge = create_utilization_gauge(
             vram_label,
             vram_ratio,
@@ -90,6 +112,8 @@ pub fn draw_gpu_tab(
             Line::from(vec![
                 Span::styled("Power: ", Style::default().fg(theme.text_muted)),
                 Span::styled(format!("{} / {}", power_str, power_limit), Style::default().fg(theme.warning)),
+                Span::styled("   Driver: ", Style::default().fg(theme.text_muted)),
+                Span::styled(&gpu.driver, Style::default().fg(theme.primary)),
             ]),
             Line::from(vec![
                 Span::styled("Clock: ", Style::default().fg(theme.text_muted)),
@@ -100,10 +124,11 @@ pub fn draw_gpu_tab(
 
         // 2. GPU Utilization History Chart
         let chart_data = history.gpu_utilization.as_chart_data();
+        let chart_title = format!("{} Utilization History (%)", gpu.name);
         draw_history_chart(
             frame,
             rows[1],
-            "GPU Utilization History (%)",
+            &chart_title,
             &chart_data,
             theme.accent,
             theme.border,
@@ -112,9 +137,15 @@ pub fn draw_gpu_tab(
             "%",
         );
 
-        // 3. GPU Processes Table
+        // 3. GPU Processes Table or Hardware Info
+        let proc_title = if gpu.processes.is_empty() {
+            " GPU Activity & Processes ".to_string()
+        } else {
+            format!(" Active GPU Processes ({}) ", gpu.processes.len())
+        };
+
         let proc_block = Block::default()
-            .title(format!(" Active GPU Processes ({}) ", gpu.processes.len()))
+            .title(proc_title)
             .borders(Borders::ALL)
             .border_style(Style::default().fg(theme.border))
             .style(Style::default().bg(theme.panel_bg));
@@ -122,41 +153,65 @@ pub fn draw_gpu_tab(
         let proc_inner = proc_block.inner(rows[2]);
         frame.render_widget(proc_block, rows[2]);
 
-        let header = Row::new(vec!["PID", "Process Name", "Used VRAM"])
-            .style(Style::default().fg(theme.accent).add_modifier(Modifier::BOLD));
+        if gpu.processes.is_empty() {
+            let info_lines = vec![
+                Line::from(vec![
+                    Span::styled("Device Name:   ", Style::default().fg(theme.text_muted)),
+                    Span::styled(&gpu.name, Style::default().fg(theme.text).add_modifier(Modifier::BOLD)),
+                ]),
+                Line::from(vec![
+                    Span::styled("Vendor/Driver: ", Style::default().fg(theme.text_muted)),
+                    Span::styled(format!("{} [{}]", gpu.vendor, gpu.driver), Style::default().fg(theme.accent)),
+                ]),
+                Line::from(vec![
+                    Span::styled("Process Info:  ", Style::default().fg(theme.text_muted)),
+                    Span::styled(
+                        if gpu.vendor == GpuVendor::Nvidia {
+                            "No active graphics or compute processes registered with NVML."
+                        } else {
+                            "Per-process VRAM accounting requires proprietary driver APIs or kernel debugfs; engine activity is actively tracked above."
+                        },
+                        Style::default().fg(theme.text_muted),
+                    ),
+                ]),
+            ];
+            frame.render_widget(Paragraph::new(info_lines), proc_inner);
+        } else {
+            let header = Row::new(vec!["PID", "Process Name", "Used VRAM"])
+                .style(Style::default().fg(theme.accent).add_modifier(Modifier::BOLD));
 
-        let rows_items: Vec<Row> = gpu
-            .processes
-            .iter()
-            .map(|gp| {
-                // Find matching system process name if available
-                let proc_name = telemetry
-                    .processes
-                    .iter()
-                    .find(|p| p.pid == gp.pid)
-                    .map(|p| p.name.clone())
-                    .unwrap_or_else(|| "Unknown".to_string());
+            let rows_items: Vec<Row> = gpu
+                .processes
+                .iter()
+                .map(|gp| {
+                    let proc_name = telemetry
+                        .processes
+                        .iter()
+                        .find(|p| p.pid == gp.pid)
+                        .map(|p| p.name.clone())
+                        .unwrap_or_else(|| "Unknown".to_string());
 
-                Row::new(vec![
-                    gp.pid.to_string(),
-                    proc_name,
-                    format_bytes(gp.used_memory),
-                ])
-                .style(Style::default().fg(theme.text))
-            })
-            .collect();
+                    Row::new(vec![
+                        gp.pid.to_string(),
+                        proc_name,
+                        format_bytes(gp.used_memory),
+                    ])
+                    .style(Style::default().fg(theme.text))
+                })
+                .collect();
 
-        let table = Table::new(
-            rows_items,
-            [
-                Constraint::Length(10),
-                Constraint::Min(25),
-                Constraint::Length(15),
-            ],
-        )
-        .header(header);
+            let table = Table::new(
+                rows_items,
+                [
+                    Constraint::Length(10),
+                    Constraint::Min(25),
+                    Constraint::Length(15),
+                ],
+            )
+            .header(header);
 
-        frame.render_widget(table, proc_inner);
+            frame.render_widget(table, proc_inner);
+        }
     } else {
         let block = Block::default()
             .title(" GPU Telemetry ")
@@ -164,7 +219,7 @@ pub fn draw_gpu_tab(
             .border_style(Style::default().fg(theme.border))
             .style(Style::default().bg(theme.panel_bg));
 
-        let p = Paragraph::new("No dedicated NVIDIA GPU found or NVML is unavailable on this host.")
+        let p = Paragraph::new("No supported GPU found via NVML or Linux DRM sysfs (/sys/class/drm).")
             .style(Style::default().fg(theme.text_muted));
 
         let inner = block.inner(area);

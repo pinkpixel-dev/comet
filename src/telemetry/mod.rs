@@ -1,6 +1,7 @@
 pub mod cpu;
 pub mod disks;
 pub mod gpu;
+pub mod gpu_sysfs;
 pub mod memory;
 pub mod network;
 pub mod processes;
@@ -9,7 +10,7 @@ pub mod system;
 
 pub use cpu::CpuMetrics;
 pub use disks::DiskMetrics;
-pub use gpu::GpuMetrics;
+pub use gpu::{GpuMetrics, GpuVendor};
 pub use memory::MemoryMetrics;
 pub use network::NetworkMetrics;
 pub use processes::{
@@ -35,6 +36,7 @@ pub struct TelemetryState {
     pub cpu: CpuMetrics,
     pub memory: MemoryMetrics,
     pub gpu: Option<GpuMetrics>,
+    pub gpus: Vec<GpuMetrics>,
     pub disks: Vec<DiskMetrics>,
     pub total_disk_read_rate: f64,
     pub total_disk_write_rate: f64,
@@ -104,7 +106,8 @@ fn run_telemetry_loop(
 
         let cpu = CpuMetrics::from_system(&system);
         let memory = MemoryMetrics::from_system(&system);
-        let gpu = gpu_sampler.sample();
+        let gpus = gpu_sampler.sample_all();
+        let gpu = gpus.first().cloned();
         let network = net_sampler.sample();
 
         // Cadence for processes, sensors, and disk I/O
@@ -126,6 +129,7 @@ fn run_telemetry_loop(
             cpu,
             memory,
             gpu,
+            gpus,
             disks: cached_disks.clone(),
             total_disk_read_rate: cached_disk_read_rate,
             total_disk_write_rate: cached_disk_write_rate,

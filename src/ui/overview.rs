@@ -183,8 +183,9 @@ fn draw_center_column(
         .split(area);
 
     // 1. GPU Panel
-    let gpu_title = match &telem.gpu {
-        Some(g) => format!(" GPU: {} ", g.name),
+    let active_gpu = telem.gpus.first().or(telem.gpu.as_ref());
+    let gpu_title = match active_gpu {
+        Some(g) => format!(" {} GPU: {} ", g.vendor, g.name),
         None => " GPU: N/A ".to_string(),
     };
 
@@ -197,7 +198,7 @@ fn draw_center_column(
     let gpu_inner = gpu_block.inner(rows[0]);
     frame.render_widget(gpu_block, rows[0]);
 
-    if let Some(gpu) = &telem.gpu {
+    if let Some(gpu) = active_gpu {
         let g_splits = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
@@ -217,16 +218,19 @@ fn draw_center_column(
         );
         frame.render_widget(gpu_gauge, g_splits[0]);
 
-        let vram_ratio = if gpu.memory_total > 0 {
-            gpu.memory_used as f64 / gpu.memory_total as f64
+        let (vram_label, vram_ratio) = if gpu.is_shared_memory || gpu.memory_total == 0 {
+            ("VRAM: Shared Memory (UMA)".to_string(), 0.0)
         } else {
-            0.0
+            let ratio = (gpu.memory_used as f64 / gpu.memory_total as f64).clamp(0.0, 1.0);
+            (
+                format!(
+                    "VRAM: {} / {}",
+                    format_bytes(gpu.memory_used),
+                    format_bytes(gpu.memory_total)
+                ),
+                ratio,
+            )
         };
-        let vram_label = format!(
-            "VRAM: {} / {}",
-            format_bytes(gpu.memory_used),
-            format_bytes(gpu.memory_total)
-        );
         let vram_gauge = create_utilization_gauge(
             vram_label,
             vram_ratio,
@@ -258,7 +262,7 @@ fn draw_center_column(
             g_splits[2],
         );
     } else {
-        let p = Paragraph::new("No dedicated NVIDIA GPU detected via NVML.")
+        let p = Paragraph::new("No supported GPU detected via NVML or Linux DRM sysfs.")
             .style(Style::default().fg(theme.text_muted));
         frame.render_widget(p, gpu_inner);
     }

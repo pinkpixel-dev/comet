@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.4.0 - September 10, 2026
+
+### 🚀 Features
+- Added native AMD GPU telemetry via Linux `/sys/class/drm` and `amdgpu` sysfs interfaces, supporting utilization, VRAM usage, temperature, power draw, fan speed, and core/memory clocks.
+- Added native Intel GPU telemetry via Linux `/sys/class/drm` and `i915`/`xe` sysfs interfaces with differential RC6 residency utilization tracking and clock frequencies.
+- Implemented multi-GPU discovery and interactive cycling via `g` on the GPU tab, allowing users on hybrid laptops and multi-adapter systems to inspect each GPU with live status banners.
+- Added modular telemetry architecture separating sysfs inspection into `gpu_sysfs` while preserving sub-millisecond NVML bindings for NVIDIA adapters.
+
+### 🎨 UI & Layout
+- Updated GPU tab header with dynamic vendor branding, multi-GPU index counters (`1 of 2`), and `[g: switch]` key hints.
+- Added support for integrated graphics shared system memory (UMA), gracefully indicating shared memory instead of 0-byte VRAM.
+- Updated the footer status bar to display active GPU vendor and driver backend dynamically.
+- Updated the help modal with the GPU cycling shortcut (`g`).
+
+### 🏷️ Versioning
+- Bumped version to 0.4.0 for Phase 3 multi-vendor GPU telemetry completion.
+
 ## 0.3.0 - September 10, 2026
 
 ### ⚡ Processes

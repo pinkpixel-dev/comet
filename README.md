@@ -2,15 +2,15 @@
 
 A colorful, animated system monitor for your terminal built with Rust and Ratatui.
 
-Comet tracks real system telemetry including CPU, NVIDIA GPU (via NVML), memory, mounted disks, network activity, processes, and thermal sensors, wrapped up with charts, gauges, animations, 9 themes, and a reactive terminal cat named Mochi.
+Comet tracks real system telemetry including CPU, multi-vendor GPU (NVIDIA NVML, AMD sysfs, Intel sysfs), memory, mounted disks, network activity, processes, and thermal sensors, wrapped up with charts, gauges, animations, 9 themes, and a reactive terminal cat named Mochi.
 
 ## Features
 
-- **Real Telemetry**: Direct system metrics using `sysinfo` and native `nvml-wrapper` with graceful fallback when NVIDIA hardware is absent.
+- **Real Telemetry**: Direct system metrics using `sysinfo`, native `nvml-wrapper` for NVIDIA, and native Linux sysfs for AMD (`amdgpu`) and Intel (`i915`/`xe`).
 - **Dedicated Tabs**:
   - `Overview`: High-density Las Vegas dashboard with CPU, GPU, RAM, Disks, Network, top processes, and Mochi.
   - `CPU`: Overall usage, per-core activity, clock speeds, and load averages.
-  - `GPU`: NVIDIA RTX / GeForce stats with live core utilization, VRAM usage, temperature, fan speed, power draw, and GPU process tracking.
+  - `GPU`: Multi-vendor GPU monitoring for NVIDIA, AMD, and Intel with live core utilization, VRAM usage, temperature, fan speed, power draw, and multi-GPU switching (`g`).
   - `Memory`: RAM and swap breakdowns with rolling usage history.
   - `Disks`: Storage capacity gauges and differential read/write throughput per volume.
   - `Network`: Upload and download throughput charts and interface counters.
@@ -68,7 +68,7 @@ animations = true
 | --- | --- |
 | `1` / `o` | Switch to Overview tab |
 | `2` / `c` | Switch to CPU tab |
-| `3` / `g` | Switch to GPU tab |
+| `3` / `g` | Switch to GPU tab / cycle active GPU (`g` on GPU tab) |
 | `4` / `m` | Switch to Memory tab |
 | `5` / `d` | Switch to Disks tab |
 | `6` / `n` | Switch to Network tab |

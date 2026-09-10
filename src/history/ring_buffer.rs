@@ -34,6 +34,11 @@ impl<T: Clone> RingBuffer<T> {
         self.data.is_empty()
     }
 
+    /// Clears all items from the ring buffer.
+    pub fn clear(&mut self) {
+        self.data.clear();
+    }
+
     /// Returns the most recently pushed item, if any.
     pub fn latest(&self) -> Option<&T> {
         self.data.back()

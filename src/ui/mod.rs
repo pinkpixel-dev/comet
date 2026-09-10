@@ -103,6 +103,7 @@ pub fn draw_ui(
     theme: &Theme,
     anim: &AnimationState,
     pet: &PetState,
+    selected_gpu_index: usize,
     selected_proc_idx: usize,
     proc_sort: ProcessSortBy,
     tree_mode: bool,
@@ -141,7 +142,7 @@ pub fn draw_ui(
             cpu::draw_cpu_tab(frame, chunks[1], telemetry, history, theme);
         }
         Tab::Gpu => {
-            gpu::draw_gpu_tab(frame, chunks[1], telemetry, history, theme);
+            gpu::draw_gpu_tab(frame, chunks[1], telemetry, history, selected_gpu_index, theme);
         }
         Tab::Memory => {
             memory::draw_memory_tab(frame, chunks[1], telemetry, history, theme);
@@ -172,7 +173,7 @@ pub fn draw_ui(
     }
 
     // 3. Footer Status Bar
-    draw_footer(frame, chunks[2], telemetry, theme);
+    draw_footer(frame, chunks[2], telemetry, selected_gpu_index, theme);
 
     // Modals
     if let Some(signal_state) = signal_modal {
@@ -249,8 +250,28 @@ fn draw_header(
     );
 }
 
-fn draw_footer(frame: &mut Frame, area: Rect, telemetry: &TelemetryState, theme: &Theme) {
-    let gpu_status = if telemetry.gpu.is_some() { "NVML: ON" } else { "NVML: OFF" };
+fn draw_footer(
+    frame: &mut Frame,
+    area: Rect,
+    telemetry: &TelemetryState,
+    selected_gpu_index: usize,
+    theme: &Theme,
+) {
+    let active_gpu = telemetry
+        .gpus
+        .get(selected_gpu_index)
+        .or(telemetry.gpu.as_ref());
+    let gpu_status = match active_gpu {
+        Some(g) => {
+            let multi = if telemetry.gpus.len() > 1 {
+                format!(" ({}/{})", selected_gpu_index + 1, telemetry.gpus.len())
+            } else {
+                String::new()
+            };
+            format!("GPU{}: {} [{}]", multi, g.vendor, g.driver)
+        }
+        None => "GPU: None".to_string(),
+    };
     let footer_spans = vec![
         Span::styled(" [1-8] Tabs ", Style::default().fg(theme.primary).add_modifier(Modifier::BOLD)),
         Span::styled("| [t] Themes | [P] Pet | [?] Help | [q] Quit ", Style::default().fg(theme.text_muted)),

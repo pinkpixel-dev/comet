@@ -1,6 +1,6 @@
 [package]
 name = "comet"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2021"
 authors = ["Pink Pixel <admin@pinkpixel.dev>"]
 description = "A colorful, animated system monitor for the terminal built with Rust and Ratatui"

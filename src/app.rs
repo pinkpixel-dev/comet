@@ -19,6 +19,7 @@ pub struct App {
     pub animation: AnimationState,
     pub theme: Theme,
     pub pet: PetState,
+    pub selected_gpu_index: usize,
     pub selected_proc_idx: usize,
     pub proc_sort: ProcessSortBy,
     pub tree_mode: bool,
@@ -51,6 +52,7 @@ impl App {
             animation: AnimationState::default(),
             theme: Theme::get(config.parsed_theme()),
             pet,
+            selected_gpu_index: 0,
             selected_proc_idx: 0,
             proc_sort: ProcessSortBy::Cpu,
             tree_mode: false,
@@ -93,13 +95,21 @@ impl App {
     }
 
     pub fn on_telemetry(&mut self, state: TelemetryState) {
+        // Clamp selected GPU index to available count
+        if state.gpus.is_empty() {
+            self.selected_gpu_index = 0;
+        } else if self.selected_gpu_index >= state.gpus.len() {
+            self.selected_gpu_index = 0;
+        }
+
         // Record into history ring buffers
         self.history.cpu_overall.push(state.cpu.overall_usage as f64);
         self.history.ram_usage_percent.push(state.memory.usage_percent() as f64);
         self.history.ram_used_bytes.push(state.memory.used_bytes as f64);
         self.history.swap_usage_percent.push(state.memory.swap_usage_percent() as f64);
 
-        if let Some(gpu) = &state.gpu {
+        let active_gpu = state.gpus.get(self.selected_gpu_index).or(state.gpu.as_ref());
+        if let Some(gpu) = active_gpu {
             self.history.gpu_utilization.push(gpu.utilization as f64);
             let vram_pct = if gpu.memory_total > 0 {
                 (gpu.memory_used as f64 / gpu.memory_total as f64) * 100.0
@@ -116,6 +126,27 @@ impl App {
 
         self.telemetry = state;
         self.clamp_selected_proc();
+    }
+
+    pub fn cycle_gpu(&mut self) {
+        let count = self.telemetry.gpus.len();
+        if count > 1 {
+            self.selected_gpu_index = (self.selected_gpu_index + 1) % count;
+            self.history.gpu_utilization.clear();
+            self.history.gpu_vram_percent.clear();
+            if let Some(gpu) = self.telemetry.gpus.get(self.selected_gpu_index) {
+                self.status_message = Some((
+                    format!(
+                        "Inspecting GPU {}/{}: {} ({})",
+                        self.selected_gpu_index + 1,
+                        count,
+                        gpu.name,
+                        gpu.vendor
+                    ),
+                    Instant::now(),
+                ));
+            }
+        }
     }
 
     pub fn on_key(&mut self, key: KeyEvent) {
@@ -239,7 +270,14 @@ impl App {
             // Direct tab jump numbers
             KeyCode::Char('1') | KeyCode::Char('o') => self.tab = Tab::Overview,
             KeyCode::Char('2') | KeyCode::Char('c') => self.tab = Tab::Cpu,
-            KeyCode::Char('3') | KeyCode::Char('g') => self.tab = Tab::Gpu,
+            KeyCode::Char('3') => self.tab = Tab::Gpu,
+            KeyCode::Char('g') | KeyCode::Char('G') => {
+                if self.tab == Tab::Gpu {
+                    self.cycle_gpu();
+                } else {
+                    self.tab = Tab::Gpu;
+                }
+            }
             KeyCode::Char('4') | KeyCode::Char('m') => self.tab = Tab::Memory,
             KeyCode::Char('5') | KeyCode::Char('d') => self.tab = Tab::Disks,
             KeyCode::Char('6') | KeyCode::Char('n') => self.tab = Tab::Network,
@@ -366,6 +404,7 @@ impl App {
             &self.theme,
             &self.animation,
             &self.pet,
+            self.selected_gpu_index,
             self.selected_proc_idx,
             self.proc_sort,
             self.tree_mode,
@@ -377,5 +416,59 @@ impl App {
             self.signal_modal.as_ref(),
             self.status_message.as_ref().map(|(msg, _)| msg.as_str()),
         );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::telemetry::{GpuMetrics, GpuVendor};
+
+    fn make_test_gpu(name: &str, vendor: GpuVendor) -> GpuMetrics {
+        GpuMetrics {
+            name: name.to_string(),
+            vendor,
+            driver: "test".to_string(),
+            utilization: 25.0,
+            memory_used: 1024,
+            memory_total: 4096,
+            is_shared_memory: false,
+            temperature: Some(50.0),
+            fan_speed: Some(40.0),
+            power_usage_watts: Some(60.0),
+            power_limit_watts: Some(100.0),
+            graphics_clock_mhz: Some(1500),
+            memory_clock_mhz: Some(3000),
+            processes: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn test_cycle_gpu_multi() {
+        let mut app = App::default();
+        app.telemetry.gpus = vec![
+            make_test_gpu("NVIDIA RTX 4090", GpuVendor::Nvidia),
+            make_test_gpu("Intel UHD Graphics", GpuVendor::Intel),
+        ];
+
+        assert_eq!(app.selected_gpu_index, 0);
+        app.cycle_gpu();
+        assert_eq!(app.selected_gpu_index, 1);
+        assert!(app.status_message.is_some());
+        assert!(app.status_message.as_ref().unwrap().0.contains("Intel"));
+
+        app.cycle_gpu();
+        assert_eq!(app.selected_gpu_index, 0);
+        assert!(app.status_message.as_ref().unwrap().0.contains("NVIDIA"));
+    }
+
+    #[test]
+    fn test_cycle_gpu_single() {
+        let mut app = App::default();
+        app.telemetry.gpus = vec![make_test_gpu("NVIDIA RTX 4090", GpuVendor::Nvidia)];
+
+        assert_eq!(app.selected_gpu_index, 0);
+        app.cycle_gpu();
+        assert_eq!(app.selected_gpu_index, 0);
     }
 }
