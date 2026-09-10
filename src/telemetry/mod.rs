@@ -12,7 +12,10 @@ pub use disks::DiskMetrics;
 pub use gpu::GpuMetrics;
 pub use memory::MemoryMetrics;
 pub use network::NetworkMetrics;
-pub use processes::{collect_processes, ProcessMetrics, ProcessSortBy};
+pub use processes::{
+    build_process_tree, collect_processes, send_signal, ProcessMetrics, ProcessSignal,
+    ProcessSortBy, ProcessTreeItem,
+};
 pub use sensors::SensorMetrics;
 pub use system::SystemInfo;
 

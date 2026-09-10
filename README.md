@@ -14,7 +14,7 @@ Comet tracks real system telemetry including CPU, NVIDIA GPU (via NVML), memory,
   - `Memory`: RAM and swap breakdowns with rolling usage history.
   - `Disks`: Storage capacity gauges and differential read/write throughput per volume.
   - `Network`: Upload and download throughput charts and interface counters.
-  - `Processes`: Interactive process manager with instant search (`/`), sort cycling (`s`), and detail inspection.
+  - `Processes`: Interactive process manager with instant search (`/`), sort cycling (`s`), hierarchical process tree view (`t`), signal dispatching (`x` / `K`), and detail inspection.
   - `Sensors`: Hardware thermal sensors with color-coded warning thresholds.
 - **Mochi the Cat**: A reactive terminal companion that sleeps when your machine is idle, perks up during work, and gets excited when your GPU spins up.
 - **9 Built-in Themes**: Candy (default), Synthwave, Aurora, Cyberpunk, Ocean, Amber CRT, Green CRT, Monochrome, and Rainbow.
@@ -75,7 +75,8 @@ animations = true
 | `7` / `p` | Switch to Processes tab |
 | `8` / `s` | Switch to Sensors tab |
 | `Tab` / `Shift+Tab` | Next / previous tab |
-| `t` | Quick cycle themes |
+| `t` | Toggle process tree (in Processes tab) / cycle themes |
+| `x` / `K` | Send signal to process (SIGTERM / SIGKILL) |
 | `T` | Open theme picker modal |
 | `P` | Open pet companion modal |
 | `j` / `k` (or `Down`/`Up`) | Navigate process list |

@@ -20,6 +20,7 @@ use ratatui::widgets::{Block, Borders, Paragraph, Tabs};
 use ratatui::Frame;
 use widgets::help_modal::draw_help_modal;
 use widgets::pet_modal::draw_pet_modal;
+use widgets::signal_modal::{draw_signal_modal, SignalModalState};
 use widgets::theme_modal::draw_theme_modal;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -104,11 +105,14 @@ pub fn draw_ui(
     pet: &PetState,
     selected_proc_idx: usize,
     proc_sort: ProcessSortBy,
+    tree_mode: bool,
     search_query: &str,
     is_searching: bool,
     show_help: bool,
     show_theme_picker: bool,
     show_pet_panel: bool,
+    signal_modal: Option<&SignalModalState>,
+    status_message: Option<&str>,
 ) {
     let size = frame.area();
 
@@ -155,8 +159,10 @@ pub fn draw_ui(
                 telemetry,
                 selected_proc_idx,
                 proc_sort,
+                tree_mode,
                 search_query,
                 is_searching,
+                status_message,
                 theme,
             );
         }
@@ -169,7 +175,9 @@ pub fn draw_ui(
     draw_footer(frame, chunks[2], telemetry, theme);
 
     // Modals
-    if show_help {
+    if let Some(signal_state) = signal_modal {
+        draw_signal_modal(frame, size, signal_state, theme);
+    } else if show_help {
         draw_help_modal(frame, size, theme);
     } else if show_theme_picker {
         draw_theme_modal(frame, size, theme);

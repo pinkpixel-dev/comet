@@ -1,6 +1,6 @@
 [package]
 name = "comet"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 authors = ["Pink Pixel <admin@pinkpixel.dev>"]
 description = "A colorful, animated system monitor for the terminal built with Rust and Ratatui"
@@ -17,3 +17,4 @@ unicode-width = "0.2"
 crossbeam-channel = "0.5"
 serde = { version = "1.0", features = ["derive"] }
 toml = "0.8"
+libc = "0.2"

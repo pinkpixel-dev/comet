@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.3.0 - September 10, 2026
+
+### ⚡ Processes
+- Added hierarchical process tree view toggled with `t` in the Processes tab, visualizing parent-child relationships with Unicode branch glyphs (`├─ `, `└─ `, `│  `).
+- Preserved sibling sorting by CPU, memory, PID, or name within the hierarchical tree structure.
+- Added process signal dispatching dialog triggered by `x` or `K` on any selected process.
+- Implemented explicit confirmation dialog allowing users to select between `SIGTERM (15)` (graceful termination) and `SIGKILL (9)` (force kill) with safe cancellation (`Esc`/`n`).
+- Added non-blocking status notice banners reporting the OS result of dispatched signals.
+
+### 🏷️ Versioning
+- Bumped version to 0.3.0 for Phase 2 process signals and process tree completion.
+
 ## 0.2.0 - September 10, 2026
 
 ### ⚙️ Configuration
