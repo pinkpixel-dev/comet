@@ -114,6 +114,7 @@ pub fn draw_ui(
     show_pet_panel: bool,
     signal_modal: Option<&SignalModalState>,
     status_message: Option<&str>,
+    recording_info: Option<(usize, std::time::Duration)>,
 ) {
     let size = frame.area();
 
@@ -130,8 +131,8 @@ pub fn draw_ui(
         ])
         .split(size);
 
-    // 1. Header (Comet Title + Tabs + Host & Uptime)
-    draw_header(frame, chunks[0], current_tab, telemetry, theme);
+    // 1. Header (Comet Title + Tabs + Recording Badge + Host & Uptime)
+    draw_header(frame, chunks[0], current_tab, telemetry, theme, recording_info);
 
     // 2. Main Tab View
     match current_tab {
@@ -193,15 +194,28 @@ fn draw_header(
     current_tab: Tab,
     telemetry: &TelemetryState,
     theme: &Theme,
+    recording_info: Option<(usize, std::time::Duration)>,
 ) {
-    let header_cols = Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([
-            Constraint::Length(12), // Title
-            Constraint::Min(40),    // Tabs
-            Constraint::Length(32), // Host & Uptime
-        ])
-        .split(area);
+    let header_cols = if recording_info.is_some() {
+        Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([
+                Constraint::Length(12), // Title
+                Constraint::Min(30),    // Tabs
+                Constraint::Length(22), // Recording Indicator
+                Constraint::Length(32), // Host & Uptime
+            ])
+            .split(area)
+    } else {
+        Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([
+                Constraint::Length(12), // Title
+                Constraint::Min(40),    // Tabs
+                Constraint::Length(32), // Host & Uptime
+            ])
+            .split(area)
+    };
 
     // Title
     let title_line = Line::from(vec![
@@ -236,14 +250,35 @@ fn draw_header(
         .divider(Span::styled(" | ", Style::default().fg(theme.border)));
     frame.render_widget(tabs, header_cols[1]);
 
+    // Optional Recording Badge
+    let host_col_idx = if let Some((count, elapsed)) = recording_info {
+        let secs = elapsed.as_secs();
+        let rec_text = format!("● REC {:02}:{:02} ({})", secs / 60, secs % 60, count);
+        let rec_block = Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(theme.danger))
+            .style(Style::default().bg(theme.panel_bg));
+        let r_inner = rec_block.inner(header_cols[2]);
+        frame.render_widget(rec_block, header_cols[2]);
+        frame.render_widget(
+            Paragraph::new(rec_text)
+                .alignment(Alignment::Center)
+                .style(Style::default().fg(theme.danger).add_modifier(Modifier::BOLD)),
+            r_inner,
+        );
+        3
+    } else {
+        2
+    };
+
     // Host & Uptime
     let host_text = format!("Host: {} | Up: {}", telemetry.system.host_name, telemetry.system.formatted_uptime());
     let host_block = Block::default()
         .borders(Borders::ALL)
         .border_style(Style::default().fg(theme.border))
         .style(Style::default().bg(theme.panel_bg));
-    let h_inner = host_block.inner(header_cols[2]);
-    frame.render_widget(host_block, header_cols[2]);
+    let h_inner = host_block.inner(header_cols[host_col_idx]);
+    frame.render_widget(host_block, header_cols[host_col_idx]);
     frame.render_widget(
         Paragraph::new(host_text).alignment(Alignment::Right).style(Style::default().fg(theme.text_muted)),
         h_inner,
@@ -274,7 +309,7 @@ fn draw_footer(
     };
     let footer_spans = vec![
         Span::styled(" [1-8] Tabs ", Style::default().fg(theme.primary).add_modifier(Modifier::BOLD)),
-        Span::styled("| [t] Themes | [P] Pet | [?] Help | [q] Quit ", Style::default().fg(theme.text_muted)),
+        Span::styled("| [r] Record | [t] Themes | [P] Pet | [?] Help | [q] Quit ", Style::default().fg(theme.text_muted)),
         Span::styled(format!(" | Theme: {} | {} ", theme.name, gpu_status), Style::default().fg(theme.accent)),
     ];
     let footer = Paragraph::new(Line::from(footer_spans)).alignment(Alignment::Center);

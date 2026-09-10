@@ -5,6 +5,7 @@ pub mod gpu_sysfs;
 pub mod memory;
 pub mod network;
 pub mod processes;
+pub mod recorder;
 pub mod sensors;
 pub mod system;
 
@@ -17,6 +18,7 @@ pub use processes::{
     build_process_tree, collect_processes, send_signal, ProcessMetrics, ProcessSignal,
     ProcessSortBy, ProcessTreeItem,
 };
+pub use recorder::{RecordingFormat, TelemetryRecorder};
 pub use sensors::SensorMetrics;
 pub use system::SystemInfo;
 

@@ -1,3 +1,4 @@
+use crate::telemetry::RecordingFormat;
 use crate::theme::ThemeId;
 use crate::ui::Tab;
 use serde::{Deserialize, Serialize};
@@ -17,6 +18,8 @@ pub struct Config {
     pub telemetry_refresh_ms: u64,
     pub process_refresh_ms: u64,
     pub history_capacity: usize,
+    pub recording_dir: Option<String>,
+    pub recording_format: String,
 }
 
 impl Default for Config {
@@ -31,6 +34,8 @@ impl Default for Config {
             telemetry_refresh_ms: 500,
             process_refresh_ms: 1000,
             history_capacity: 120,
+            recording_dir: None,
+            recording_format: "csv".to_string(),
         }
     }
 }
@@ -108,6 +113,44 @@ impl Config {
             _ => Tab::Overview,
         }
     }
+
+    /// Resolves the configured recording format: "csv" or "json".
+    pub fn parsed_recording_format(&self) -> RecordingFormat {
+        match self.recording_format.trim().to_lowercase().as_str() {
+            "json" | "jsonl" | "ndjson" => RecordingFormat::Json,
+            _ => RecordingFormat::Csv,
+        }
+    }
+
+    /// Resolves the recording output directory. If not configured or empty,
+    /// defaults to `$XDG_DATA_HOME/comet/recordings` or `~/.local/share/comet/recordings` (fallback to `./recordings`).
+    pub fn resolve_recording_dir(&self) -> PathBuf {
+        if let Some(ref dir) = self.recording_dir {
+            let trimmed = dir.trim();
+            if !trimmed.is_empty() {
+                if trimmed.starts_with("~/") {
+                    if let Ok(home) = env::var("HOME") {
+                        return PathBuf::from(home).join(&trimmed[2..]);
+                    }
+                }
+                return PathBuf::from(trimmed);
+            }
+        }
+
+        if let Ok(xdg) = env::var("XDG_DATA_HOME") {
+            if !xdg.trim().is_empty() {
+                return PathBuf::from(xdg).join("comet").join("recordings");
+            }
+        }
+
+        if let Ok(home) = env::var("HOME") {
+            if !home.trim().is_empty() {
+                return PathBuf::from(home).join(".local").join("share").join("comet").join("recordings");
+            }
+        }
+
+        PathBuf::from("./recordings")
+    }
 }
 
 #[cfg(test)]
@@ -122,6 +165,8 @@ mod tests {
         assert_eq!(cfg.pet_name, "Mochi");
         assert!(cfg.show_pet);
         assert_eq!(cfg.telemetry_refresh_ms, 500);
+        assert_eq!(cfg.parsed_recording_format(), RecordingFormat::Csv);
+        assert!(cfg.resolve_recording_dir().to_string_lossy().contains("recordings"));
     }
 
     #[test]
@@ -132,6 +177,8 @@ mod tests {
             pet_name = "Kiko"
             show_pet = false
             telemetry_refresh_ms = 250
+            recording_format = "json"
+            recording_dir = "/tmp/comet_bench"
         "#;
 
         let cfg: Config = toml::from_str(toml_str).unwrap();
@@ -141,6 +188,8 @@ mod tests {
         assert!(!cfg.show_pet);
         assert_eq!(cfg.telemetry_refresh_ms, 250);
         assert_eq!(cfg.process_refresh_ms, 1000); // defaulted
+        assert_eq!(cfg.parsed_recording_format(), RecordingFormat::Json);
+        assert_eq!(cfg.resolve_recording_dir(), PathBuf::from("/tmp/comet_bench"));
     }
 
     #[test]

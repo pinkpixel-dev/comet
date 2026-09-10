@@ -3,7 +3,8 @@ use crate::config::Config;
 use crate::history::MetricHistory;
 use crate::pet::PetState;
 use crate::telemetry::{
-    build_process_tree, send_signal, ProcessMetrics, ProcessSortBy, TelemetryState,
+    build_process_tree, send_signal, ProcessMetrics, ProcessSortBy, TelemetryRecorder,
+    TelemetryState,
 };
 use crate::theme::Theme;
 use crate::ui::widgets::signal_modal::SignalModalState;
@@ -30,6 +31,7 @@ pub struct App {
     pub show_help: bool,
     pub show_theme_picker: bool,
     pub show_pet_panel: bool,
+    pub recorder: TelemetryRecorder,
     pub should_quit: bool,
 }
 
@@ -44,6 +46,11 @@ impl App {
         let mut pet = PetState::default();
         pet.name = config.pet_name.clone();
         pet.visible = config.show_pet;
+
+        let recorder = TelemetryRecorder::new(
+            config.parsed_recording_format(),
+            config.resolve_recording_dir(),
+        );
 
         Self {
             tab: config.parsed_tab(),
@@ -63,6 +70,7 @@ impl App {
             show_help: false,
             show_theme_picker: false,
             show_pet_panel: false,
+            recorder,
             should_quit: false,
         }
     }
@@ -125,6 +133,9 @@ impl App {
         self.history.disk_write_rate.push(state.total_disk_write_rate);
 
         self.telemetry = state;
+        if self.recorder.is_recording() {
+            let _ = self.recorder.record(&self.telemetry, self.selected_gpu_index);
+        }
         self.clamp_selected_proc();
     }
 
@@ -245,6 +256,9 @@ impl App {
             }
             KeyCode::Char('?') | KeyCode::Char('h') => {
                 self.show_help = !self.show_help;
+            }
+            KeyCode::Char('r') | KeyCode::Char('R') => {
+                self.toggle_recording();
             }
             KeyCode::Char('t') => {
                 if self.tab == Tab::Processes {
@@ -395,7 +409,55 @@ impl App {
         }
     }
 
+    pub fn toggle_recording(&mut self) {
+        if self.recorder.is_recording() {
+            match self.recorder.stop() {
+                Ok(Some((path, count, elapsed))) => {
+                    let secs = elapsed.as_secs();
+                    self.status_message = Some((
+                        format!(
+                            "✔ Saved {} samples ({:02}:{:02}) to {}",
+                            count,
+                            secs / 60,
+                            secs % 60,
+                            path.display()
+                        ),
+                        Instant::now(),
+                    ));
+                }
+                Ok(None) => {}
+                Err(err) => {
+                    self.status_message = Some((
+                        format!("✖ Failed to finalize recording: {}", err),
+                        Instant::now(),
+                    ));
+                }
+            }
+        } else {
+            match self.recorder.start() {
+                Ok(path) => {
+                    self.status_message = Some((
+                        format!("● Recording started ({:?}): {}", self.recorder.format, path.display()),
+                        Instant::now(),
+                    ));
+                }
+                Err(err) => {
+                    self.status_message = Some((
+                        format!("✖ Failed to start recording: {}", err),
+                        Instant::now(),
+                    ));
+                }
+            }
+        }
+    }
+
     pub fn draw(&mut self, frame: &mut Frame) {
+        let recording_info = if self.recorder.is_recording() {
+            Some((self.recorder.sample_count(), self.recorder.elapsed()))
+        } else {
+            None
+        };
+
         draw_ui(
             frame,
             &self.telemetry,
@@ -415,6 +477,7 @@ impl App {
             self.show_pet_panel,
             self.signal_modal.as_ref(),
             self.status_message.as_ref().map(|(msg, _)| msg.as_str()),
+            recording_info,
         );
     }
 }
@@ -470,5 +533,27 @@ mod tests {
         assert_eq!(app.selected_gpu_index, 0);
         app.cycle_gpu();
         assert_eq!(app.selected_gpu_index, 0);
+    }
+
+    #[test]
+    fn test_toggle_recording() {
+        let mut app = App::default();
+        app.recorder.output_dir = std::env::temp_dir().join("comet_test_app_rec");
+
+        assert!(!app.recorder.is_recording());
+        app.toggle_recording();
+        assert!(app.recorder.is_recording());
+        assert!(app.status_message.is_some());
+        assert!(app.status_message.as_ref().unwrap().0.contains("Recording started"));
+
+        // Simulate telemetry arrival
+        app.on_telemetry(TelemetryState::default());
+        assert_eq!(app.recorder.sample_count(), 1);
+
+        app.toggle_recording();
+        assert!(!app.recorder.is_recording());
+        assert!(app.status_message.as_ref().unwrap().0.contains("Saved 1 samples"));
+
+        let _ = std::fs::remove_dir_all(&app.recorder.output_dir);
     }
 }

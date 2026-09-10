@@ -17,6 +17,7 @@ Comet tracks real system telemetry including CPU, multi-vendor GPU (NVIDIA NVML,
   - `Processes`: Interactive process manager with instant search (`/`), sort cycling (`s`), hierarchical process tree view (`t`), signal dispatching (`x` / `K`), and detail inspection.
   - `Sensors`: Hardware thermal sensors with color-coded warning thresholds.
 - **Mochi the Cat**: A reactive terminal companion that sleeps when your machine is idle, perks up during work, and gets excited when your GPU spins up.
+- **Telemetry Export**: Toggle session recording anytime with `r` to dump live telemetry to CSV or JSON for post-run analysis and benchmarking.
 - **9 Built-in Themes**: Candy (default), Synthwave, Aurora, Cyberpunk, Ocean, Amber CRT, Green CRT, Monochrome, and Rainbow.
 - **Non-blocking Telemetry**: Background worker threads handle telemetry collection so UI rendering stays fluid at 30 FPS.
 
@@ -60,6 +61,10 @@ history_capacity = 120
 
 # UI animations toggle
 animations = true
+
+# Telemetry recording export settings
+recording_format = "csv" # "csv" or "json"
+# recording_dir = "~/.local/share/comet/recordings"
 ```
 
 ## Keyboard Shortcuts
@@ -75,6 +80,7 @@ animations = true
 | `7` / `p` | Switch to Processes tab |
 | `8` / `s` | Switch to Sensors tab |
 | `Tab` / `Shift+Tab` | Next / previous tab |
+| `r` | Toggle telemetry recording (CSV / JSON) |
 | `t` | Toggle process tree (in Processes tab) / cycle themes |
 | `x` / `K` | Send signal to process (SIGTERM / SIGKILL) |
 | `T` | Open theme picker modal |

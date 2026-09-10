@@ -19,6 +19,7 @@ pub fn draw_help_modal(frame: &mut Frame, area: Rect, theme: &Theme) {
         ("7 / p", "Process Manager & Inspection"),
         ("8 / s", "Sensors & Hardware Temperatures"),
         ("Tab / S-Tab", "Cycle Tabs Forward / Backward"),
+        ("r", "Toggle Telemetry Recording (CSV/JSON)"),
         ("t", "Toggle Tree (in Procs) / Cycle Theme"),
         ("x / K", "Send Signal to Process (SIGTERM / SIGKILL)"),
         ("T", "Open Theme Palette Picker"),

@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.5.0 - September 10, 2026
+
+### 🚀 Features
+- Added session recording engine in `src/telemetry/recorder.rs` for exporting real-time telemetry to CSV or JSON.
+- Supported continuous buffered file streaming with low memory footprint, writing samples directly on each telemetry cycle.
+- Standardized CSV export columns including timestamps, elapsed seconds, overall and per-core CPU, RAM bytes and percent, Swap, GPU metrics (vendor, name, load, VRAM, temp, power), disk throughput, network rates, and thermal sensors.
+- Added valid structured JSON array streaming export compatible with standard JSON parsers and data science toolkits.
+- Added configuration options in `~/.config/comet/config.toml` for `recording_format` (`"csv"` or `"json"`) and custom `recording_dir`.
+
+### 🎨 UI & Layout
+- Added prominent `● REC` recording badge to the top header bar displaying elapsed recording time (`MM:SS`) and sample count.
+- Added interactive toggle keybinding (`r` / `R`) to start and stop recordings with instant confirmation toast messages.
+- Updated footer status bar with the `[r] Record` keyboard shortcut.
+- Updated help modal shortcuts table with the new recording toggle action.
+
+### 🏷️ Versioning
+- Bumped version to 0.5.0 for Phase 4 telemetry export completion.
+
 ## 0.4.0 - September 10, 2026
 
 ### 🚀 Features
