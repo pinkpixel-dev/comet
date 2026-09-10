@@ -4,6 +4,8 @@ A colorful, animated system monitor for your terminal built with Rust and Ratatu
 
 Comet tracks real system telemetry including CPU, multi-vendor GPU (NVIDIA NVML, AMD sysfs, Intel sysfs), memory, mounted disks, network activity, processes, and thermal sensors, wrapped up with charts, gauges, animations, 9 themes, and a reactive terminal cat named Mochi.
 
+![Comet](comet.gif)
+
 ## Features
 
 - **Real Telemetry**: Direct system metrics using `sysinfo`, native `nvml-wrapper` for NVIDIA, and native Linux sysfs for AMD (`amdgpu`) and Intel (`i915`/`xe`).
