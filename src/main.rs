@@ -70,7 +70,10 @@ fn main() -> Result<()> {
             Ok(AppEvent::Resize(_, _)) => {
                 terminal.draw(|f| app.draw(f))?;
             }
-            Ok(AppEvent::Mouse(_)) => {}
+            Ok(AppEvent::Mouse(mouse)) => {
+                app.on_mouse(mouse);
+                terminal.draw(|f| app.draw(f))?;
+            }
             Err(_) => break,
         }
     }

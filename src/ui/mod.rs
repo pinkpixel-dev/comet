@@ -93,6 +93,20 @@ impl Tab {
     pub fn prev(self) -> Self {
         Self::from_index(self.index() + 7)
     }
+
+    pub fn tab_at_offset(rel_x: u16) -> Option<Tab> {
+        match rel_x {
+            0..=11 => Some(Tab::Overview),
+            12..=19 => Some(Tab::Cpu),
+            20..=27 => Some(Tab::Gpu),
+            28..=38 => Some(Tab::Memory),
+            39..=48 => Some(Tab::Disks),
+            49..=60 => Some(Tab::Network),
+            61..=74 => Some(Tab::Processes),
+            75..=90 => Some(Tab::Sensors),
+            _ => None,
+        }
+    }
 }
 
 pub fn draw_ui(
@@ -314,4 +328,23 @@ fn draw_footer(
     ];
     let footer = Paragraph::new(Line::from(footer_spans)).alignment(Alignment::Center);
     frame.render_widget(footer, area);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_tab_at_offset_mapping() {
+        assert_eq!(Tab::tab_at_offset(0), Some(Tab::Overview));
+        assert_eq!(Tab::tab_at_offset(10), Some(Tab::Overview));
+        assert_eq!(Tab::tab_at_offset(15), Some(Tab::Cpu));
+        assert_eq!(Tab::tab_at_offset(24), Some(Tab::Gpu));
+        assert_eq!(Tab::tab_at_offset(33), Some(Tab::Memory));
+        assert_eq!(Tab::tab_at_offset(44), Some(Tab::Disks));
+        assert_eq!(Tab::tab_at_offset(55), Some(Tab::Network));
+        assert_eq!(Tab::tab_at_offset(68), Some(Tab::Processes));
+        assert_eq!(Tab::tab_at_offset(80), Some(Tab::Sensors));
+        assert_eq!(Tab::tab_at_offset(99), None);
+    }
 }

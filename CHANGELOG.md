@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.5.1 - September 10, 2026
+
+### 🐛 Fixes
+- Decoupled `8` key shortcut from process sort toggle (`s`) in `src/app.rs`, ensuring pressing `8` always opens the Sensors tab directly even when viewing the Processes tab.
+- Excluded heavy `comet.gif` asset and documentation from published crate package in `Cargo.toml` to stay well under crates.io registry size limits.
+
+### 🎨 UI & Layout
+- Added mouse and touch click navigation for the header tab bar in `src/app.rs`, `src/ui/mod.rs`, and `src/main.rs`.
+- Added mouse wheel scrolling support for the process table.
+- Added click-to-select for rows in the active process table.
+- Added click-to-dismiss behavior for overlay modals (help, theme picker, pet status, process signal dialog).
+
+### 🏷️ Versioning
+- Configured package name as `comet-tui` with binary alias `comet` in `Cargo.toml` for crates.io registry availability.
+- Bumped version to 0.5.1.
+
 ## 0.5.0 - September 10, 2026
 
 ### 🚀 Features

@@ -1,11 +1,19 @@
 [package]
-name = "comet"
-version = "0.5.0"
+name = "comet-tui"
+version = "0.5.1"
 edition = "2021"
 authors = ["Pink Pixel <admin@pinkpixel.dev>"]
 description = "A colorful, animated system monitor for the terminal built with Rust and Ratatui"
 license = "Apache-2.0"
 repository = "https://github.com/pinkpixel-dev/comet"
+readme = "README.md"
+keywords = ["system-monitor", "tui", "ratatui", "terminal", "sysinfo"]
+categories = ["command-line-utilities", "visualization"]
+exclude = ["comet.gif", "DOCS/**", ".agents/**"]
+
+[[bin]]
+name = "comet"
+path = "src/main.rs"
 
 [dependencies]
 ratatui = { version = "0.30.2", features = ["all-widgets", "crossterm"] }

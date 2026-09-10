@@ -9,7 +9,7 @@ use crate::telemetry::{
 use crate::theme::Theme;
 use crate::ui::widgets::signal_modal::SignalModalState;
 use crate::ui::{draw_ui, Tab};
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use ratatui::Frame;
 use std::time::{Duration, Instant};
 
@@ -296,7 +296,8 @@ impl App {
             KeyCode::Char('5') | KeyCode::Char('d') => self.tab = Tab::Disks,
             KeyCode::Char('6') | KeyCode::Char('n') => self.tab = Tab::Network,
             KeyCode::Char('7') | KeyCode::Char('p') => self.tab = Tab::Processes,
-            KeyCode::Char('8') | KeyCode::Char('s') => {
+            KeyCode::Char('8') => self.tab = Tab::Sensors,
+            KeyCode::Char('s') => {
                 if self.tab == Tab::Processes {
                     // In processes tab, 's' toggles sort column
                     self.cycle_process_sort();
@@ -330,6 +331,63 @@ impl App {
                 if !self.search_query.is_empty() {
                     self.search_query.clear();
                     self.clamp_selected_proc();
+                }
+            }
+            _ => {}
+        }
+    }
+
+    pub fn on_mouse(&mut self, mouse: MouseEvent) {
+        // If an overlay modal is visible, clicking dismisses it
+        if self.show_help || self.show_theme_picker || self.show_pet_panel {
+            if matches!(mouse.kind, MouseEventKind::Down(MouseButton::Left)) {
+                self.show_help = false;
+                self.show_theme_picker = false;
+                self.show_pet_panel = false;
+            }
+            return;
+        }
+
+        // If signal modal is open, clicking dismisses it
+        if self.signal_modal.is_some() {
+            if matches!(mouse.kind, MouseEventKind::Down(MouseButton::Left)) {
+                self.signal_modal = None;
+            }
+            return;
+        }
+
+        match mouse.kind {
+            MouseEventKind::Down(MouseButton::Left) => {
+                // Header click (rows 0, 1, 2)
+                if mouse.row <= 2 {
+                    if mouse.column < 12 {
+                        // Clicking the COMET logo/title switches to Overview
+                        self.tab = Tab::Overview;
+                    } else if mouse.column >= 13 {
+                        let rel_x = mouse.column - 13;
+                        if let Some(clicked_tab) = Tab::tab_at_offset(rel_x) {
+                            self.tab = clicked_tab;
+                        }
+                    }
+                } else if self.tab == Tab::Processes && mouse.row >= 5 {
+                    let clicked_row = (mouse.row - 5) as usize;
+                    let total = self.current_process_count();
+                    if clicked_row < total {
+                        self.selected_proc_idx = clicked_row;
+                    }
+                }
+            }
+            MouseEventKind::ScrollDown => {
+                if self.tab == Tab::Processes {
+                    let total = self.current_process_count();
+                    if total > 0 && self.selected_proc_idx + 1 < total {
+                        self.selected_proc_idx += 1;
+                    }
+                }
+            }
+            MouseEventKind::ScrollUp => {
+                if self.tab == Tab::Processes && self.selected_proc_idx > 0 {
+                    self.selected_proc_idx -= 1;
                 }
             }
             _ => {}
@@ -555,5 +613,56 @@ mod tests {
         assert!(app.status_message.as_ref().unwrap().0.contains("Saved 1 samples"));
 
         let _ = std::fs::remove_dir_all(&app.recorder.output_dir);
+    }
+
+    #[test]
+    fn test_sensors_tab_key_from_processes() {
+        let mut app = App::default();
+        app.tab = Tab::Processes;
+        assert_eq!(app.tab, Tab::Processes);
+
+        // Press '8' should switch to Sensors even when on Processes tab
+        let key_8 = KeyEvent::new(KeyCode::Char('8'), KeyModifiers::NONE);
+        app.on_key(key_8);
+        assert_eq!(app.tab, Tab::Sensors);
+    }
+
+    #[test]
+    fn test_process_sort_key_s_from_processes() {
+        let mut app = App::default();
+        app.tab = Tab::Processes;
+        assert_eq!(app.proc_sort, ProcessSortBy::Cpu);
+
+        // Press 's' on Processes cycles sort, remains on Processes
+        let key_s = KeyEvent::new(KeyCode::Char('s'), KeyModifiers::NONE);
+        app.on_key(key_s);
+        assert_eq!(app.tab, Tab::Processes);
+        assert_eq!(app.proc_sort, ProcessSortBy::Memory);
+    }
+
+    #[test]
+    fn test_mouse_header_tab_click() {
+        let mut app = App::default();
+        assert_eq!(app.tab, Tab::Overview);
+
+        // Click at row 1, col 93 (approx rel_x = 80 -> Sensors)
+        let mouse_click = MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: 93,
+            row: 1,
+            modifiers: KeyModifiers::NONE,
+        };
+        app.on_mouse(mouse_click);
+        assert_eq!(app.tab, Tab::Sensors);
+
+        // Click at col 5, row 1 (Comet title -> Overview)
+        let title_click = MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: 5,
+            row: 1,
+            modifiers: KeyModifiers::NONE,
+        };
+        app.on_mouse(title_click);
+        assert_eq!(app.tab, Tab::Overview);
     }
 }

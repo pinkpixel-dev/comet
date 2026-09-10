@@ -23,17 +23,25 @@ Comet tracks real system telemetry including CPU, multi-vendor GPU (NVIDIA NVML,
 
 ## Installation & Running
 
-Ensure you have Rust and Cargo installed:
+Install directly from crates.io:
 
 ```bash
-cargo build --release
-./target/release/comet
+cargo install comet-tui
 ```
 
-Or run directly with cargo:
+Then run:
 
 ```bash
-cargo run --release
+comet
+```
+
+Or build from source:
+
+```bash
+git clone https://github.com/pinkpixel-dev/comet.git
+cd comet
+cargo build --release
+./target/release/comet
 ```
 
 ## Configuration
