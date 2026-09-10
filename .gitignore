@@ -1,0 +1,17 @@
+# Rust build artifacts
+/target/
+
+# Cargo
+Cargo.lock.backup
+
+# Editor & OS cruft
+.DS_Store
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+*.bak
+
+# Other
+DOCS/
